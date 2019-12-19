@@ -1,0 +1,36 @@
+---
+- name:  Clone a virtual machine from Linux template and customize
+  vmware_guest:
+    hostname: "{{ vcenter_provision_hostname }}"
+    username: "{{ vcenter_provision_username }}"
+    password: "{{ vcenter_provision_password }}"
+    validate_certs: no
+    datacenter: "{{ vcenter_provision_datacenter }}"
+    state: present
+    folder: "{{ vcenter_provision_folder }}"
+    template: "{{ vcenter_provision_default_rhcos_template }}"
+    name: "{{ inventory_hostname_short }}"
+    cluster: "{{ vcenter_provision_cluster }}"
+    is_template: no
+    hardware:
+      hotadd_cpu: yes
+      hotremove_cpu: yes
+      hotadd_memory: yes
+      num_cpus: "{{ cpu }}"
+      memory_mb: "{{ ram|int*1024 }}"
+    disk:
+      - size_gb: "120"
+        type: thin
+        datastore: "{{ datastore | default(vcenter_provision_datastore) }}"
+    networks:
+      - name: "{{ vcenter_provision_network_name }}"
+    customvalues:
+      - key: "guestinfo.ignition.config.data"
+        value: "{{ ignition_data }}"
+      - key: "guestinfo.ignition.config.data.encoding"
+        value: "base64"
+      - key: "disk.EnableUUID"
+        value: "TRUE"
+    wait_for_ip_address: False
+  delegate_to: localhost
+  register: created_vm
