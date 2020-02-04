@@ -1,4 +1,14 @@
 ---
+- set_fact:
+    disks_layout:
+    - size_gb: 120
+      type: thin
+      datastore: "{{ datastore | default(vcenter_provision_datastore) }}"
+- set_fact:
+    disks_layout: "{{ disks_layout + additional_storage }}"
+  when: additional_storage is defined
+- debug:
+    var: disks_layout
 - name:  Clone a virtual machine from Linux template and customize
   vmware_guest:
     hostname: "{{ vcenter_provision_hostname }}"
@@ -18,10 +28,7 @@
       hotadd_memory: yes
       num_cpus: "{{ cpu }}"
       memory_mb: "{{ ram|int*1024 }}"
-    disk:
-      - size_gb: "120"
-        type: thin
-        datastore: "{{ datastore | default(vcenter_provision_datastore) }}"
+    disk: "{{ disks_layout }}"
     networks:
       - name: "{{ vcenter_provision_network_name }}"
     customvalues:
@@ -34,3 +41,32 @@
     wait_for_ip_address: False
   delegate_to: localhost
   register: created_vm
+- name: set MAC 
+  vmware_guest_network:
+    hostname: "{{ vcenter_provision_hostname }}"
+    username: "{{ vcenter_provision_username }}"
+    password: "{{ vcenter_provision_password }}"
+    validate_certs: no
+    datacenter: "{{ vcenter_provision_datacenter }}"
+    name: "{{ inventory_hostname_short }}"
+    gather_network_info: false
+    networks:
+      - mac: "{{ created_vm.instance.hw_eth0.macaddress }}"
+        state: present
+        manual_mac: "{{ mac }}"
+        connected: true
+  delegate_to: localhost
+  register: network_info
+  when: mac is defined
+
+- name: Set the state of a virtual machine to poweron
+  vmware_guest_powerstate:
+    hostname: "{{ vcenter_provision_hostname }}"
+    username: "{{ vcenter_provision_username }}"
+    password: "{{ vcenter_provision_password }}"
+    validate_certs: no
+    folder: "{{ vcenter_provision_folder }}"
+    name: "{{ inventory_hostname_short }}"
+    state: powered-on
+  delegate_to: localhost
+  register: deploy
