@@ -58,6 +58,20 @@
   delegate_to: localhost
   register: network_info
   when: mac is defined
+  tags: set_mac
+
+- name: Add virtual machine custom attributes
+  vmware_guest_custom_attributes:
+    hostname: "{{ vcenter_provision_hostname }}"
+    username: "{{ vcenter_provision_username }}"
+    password: "{{ vcenter_provision_password }}"
+    validate_certs: no
+    datacenter: "{{ vcenter_provision_datacenter }}"
+    name: "{{ inventory_hostname_short }}"
+    state: present
+    attributes: "{{ (vcenter_provision_custom_attributes | from_yaml )| union( (vcenter_provision_custom_attributes_additional | from_yaml ) | default([]) ) }}"
+  delegate_to: localhost
+  tags: tags
 
 - name: Set the state of a virtual machine to poweron
   vmware_guest_powerstate:
@@ -70,3 +84,4 @@
     state: powered-on
   delegate_to: localhost
   register: deploy
+  tags: start_vm
